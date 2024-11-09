@@ -31,7 +31,7 @@ jobs:
     - name: Benchmark with bencher and pytest
       run: |
         bencher run \
-        --project image_interpolation \
+        --project image-interpolation \
         --adapter python_pytest \
         --file results.json \
         --token '${{ secrets.BENCHER_API_TOKEN }}'
