@@ -6,14 +6,14 @@ fn fibonacci(n: usize) -> u64 {
         return n as u64;
     }
 
-    let mut dp = vec![0; n + 1];
-    dp[1] = 1;
-
-    for i in 2..=n {
-        dp[i] = dp[i - 1] + dp[i - 2];
+    let (mut a, mut b) = (0, 1);
+    for _ in 2..=n {
+        let next = a + b;
+        a = b;
+        b = next;
     }
 
-    dp[n]
+    b
 }
 
 #[pymodule]

@@ -23,9 +23,18 @@ jobs:
       uses: actions/setup-python@v3
       with:
         python-version: "3.12"
+    - uses: bencherdev/bencher@main
     - name: Install Hatch
       uses: pypa/hatch@install
     - name: Build with hatch
       run: hatch build
-    - name: Test with pytest
-      run: hatch run pytest
+    - name: Benchmark with bencher and pytest
+      run: |
+        bencher run \
+        --project image_interpolation \
+        --adapter python_pytest \
+        --file results.json \
+        --token '${{ secrets.BENCHER_API_TOKEN }}'
+        --testbed ubuntu-latest \
+        --github-actions '${{ secrets.GITHUB_TOKEN }}' \
+        "hatch run pytest"
