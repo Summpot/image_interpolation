@@ -1,0 +1,16 @@
+[package]
+authors = ["Summpot <summpot@outlook.com>"]
+name = "image_interpolation"
+version = "0.1.0"
+description = ""
+edition = "2021"
+
+[dependencies]
+pyo3 = { version = "0.22.4", features = [
+    "extension-module",
+    "generate-import-lib",
+] }
+
+[lib]
+name = "image_interpolation"
+crate-type = ["cdylib"]

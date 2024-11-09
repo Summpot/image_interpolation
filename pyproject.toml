@@ -1,0 +1,12 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "image_interpolation"
+classifiers = ["Programming Language :: Python", "Programming Language :: Rust"]
+requires-python = ">=3.7"
+dependencies = ["pytest", "pytest-benchmark"]
+
+[tool.maturin]
+python-packages = ["image_interpolation", "tests"]
