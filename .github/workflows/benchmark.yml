@@ -19,15 +19,18 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - uses: actions-rust-lang/setup-rust-toolchain@v1
     - name: Set up Python 3.12
       uses: actions/setup-python@v3
       with:
         python-version: "3.12"
     - uses: bencherdev/bencher@main
-    - name: Install Hatch
-      uses: pypa/hatch@install
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
     - name: Build with hatch
-      run: hatch build
+      run: uv build
+    - name: Run benchmarks
+      run: uv run pytest --benchmark-json result.json
     - name: Benchmark with bencher and pytest
       run: |
         bencher run \
@@ -36,5 +39,4 @@ jobs:
         --file results.json \
         --token '${{ secrets.BENCHER_API_TOKEN }}'
         --testbed ubuntu-latest \
-        --github-actions '${{ secrets.GITHUB_TOKEN }}' \
-        "hatch run pytest"
+        --github-actions '${{ secrets.GITHUB_TOKEN }}'
