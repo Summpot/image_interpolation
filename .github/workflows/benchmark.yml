@@ -30,7 +30,7 @@ jobs:
     - name: Build with hatch
       run: uv build
     - name: Run benchmark
-      run: uv run pytest --benchmark-json=results.json
+      run: uv run pytest --benchmark-json=results.json --benchmark-min-rounds=20
     - uses: actions/upload-artifact@v4
       with: 
         name: BenchmarkData

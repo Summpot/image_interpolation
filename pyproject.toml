@@ -4,8 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "image_interpolation"
-classifiers = ["Programming Language :: Python", "Programming Language :: Rust"]
-requires-python = ">=3.7"
+requires-python = ">=3.12"
 dependencies = ["pytest", "pytest-benchmark"]
 
 [tool.maturin]
