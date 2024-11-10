@@ -29,13 +29,19 @@ jobs:
       uses: astral-sh/setup-uv@v3
     - name: Build with hatch
       run: uv build
-    - name: Run benchmark and upload data
-      run: |
-        bencher run \
-        --project image-interpolation \
-        --adapter python_pytest \
-        --file ./results.json \
-        --token '${{ secrets.BENCHER_API_TOKEN }}'
-        --testbed ubuntu-latest \
-        --github-actions '${{ secrets.GITHUB_TOKEN }}'
-        "uv run pytest --benchmark-json=results.json"
+    - name: Run benchmark
+      run: uv run pytest --benchmark-json=results.json
+    - uses: actions/upload-artifact@v4
+      with: 
+        name: BenchmarkData
+        path: results.json
+    # - name: Upload data
+    #   run: |
+    #     bencher run \
+    #     --project image-interpolation \
+    #     --adapter python_pytest \
+    #     --file ./results.json \
+    #     --token '${{ secrets.BENCHER_API_TOKEN }}'
+    #     --testbed ubuntu-latest \
+    #     --github-actions '${{ secrets.GITHUB_TOKEN }}'
+
