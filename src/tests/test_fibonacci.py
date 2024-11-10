@@ -8,12 +8,10 @@ def fibonacci_pure_python(n, computed={0: 0, 1: 1}):
 
 @pytest.mark.parametrize("n", [10, 20, 100, 500, 1000])
 def test_fibonacci_pure_python(benchmark, n):
-    # 基准测试动态规划实现
     result = benchmark(fibonacci_pure_python, n)
     assert result >= 0
 
 @pytest.mark.parametrize("n", [10, 20, 100, 500, 1000])
 def test_fibonacci_pyo3(benchmark, n):
-    # 基准测试动态规划实现
     result = benchmark(image_interpolation.fibonacci, n)
     assert result >= 0
