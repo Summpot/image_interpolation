@@ -30,13 +30,13 @@ jobs:
     - name: Build with hatch
       run: uv build
     - name: Run benchmarks
-      run: uv run pytest --benchmark-json result.json
-    - name: Benchmark with bencher and pytest
+      run: uv run pytest --benchmark-json=results.json
+    - name: Upload benchmark data
       run: |
         bencher run \
         --project image-interpolation \
         --adapter python_pytest \
-        --file results.json \
+        --file ./results.json \
         --token '${{ secrets.BENCHER_API_TOKEN }}'
         --testbed ubuntu-latest \
         --github-actions '${{ secrets.GITHUB_TOKEN }}'
