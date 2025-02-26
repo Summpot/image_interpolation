@@ -1,0 +1,24 @@
+name: Benchmarks
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on:  ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --all-extras --dev
+      - run: uv run main.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Results
+          path: bench.json
+      - run: uv cache prune --ci

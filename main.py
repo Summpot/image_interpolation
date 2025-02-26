@@ -13,7 +13,8 @@ def bench_nearest_neighbor(runner, image, scale_factor):
     runner.bench_func(
         "nearest_neighbor_interpolate",
         image_interpolation.py_nearest_neighbor_interpolate,
-        args=(image, scale_factor),
+        image,
+        scale_factor,
     )
 
 
@@ -22,7 +23,8 @@ def bench_bilinear(runner, image, scale_factor):
     runner.bench_func(
         "bilinear_interpolate",
         image_interpolation.py_bilinear_interpolate,
-        args=(image, scale_factor),
+        image,
+        scale_factor,
     )
 
 
@@ -30,9 +32,6 @@ if __name__ == "__main__":
     runner = pyperf.Runner()
     image = prepare_image()
     scale_factor = 2.0
-
-    print(f"基准测试图像大小: {image.shape}, 缩放倍率: {scale_factor}")
-
     bench_nearest_neighbor(runner, image, scale_factor)
     bench_bilinear(runner, image, scale_factor)
 
@@ -40,5 +39,3 @@ if __name__ == "__main__":
     runner.metadata["image_size"] = str(image.shape)
     runner.metadata["scale_factor"] = str(scale_factor)
     runner.metadata["interpolation_methods"] = "nearest_neighbor, bilinear"
-
-    runner.run_cli()
