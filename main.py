@@ -2,6 +2,7 @@ import numpy as np
 import image_interpolation
 import pyperf
 import polars as pl
+from datasets import load_dataset
 
 def bench_time(runner, func, dataset, label, image, scale_factor):
     runner.bench_func(
@@ -25,9 +26,7 @@ def run_benchmarks(dataset, label, image, func):
 
 
 if __name__ == "__main__":
-    dataset = pl.read_parquet(
-        "hf://datasets/blanchon/UC_Merced/data/train-00000-of-00001.parquet"
-    )
+    dataset = load_dataset("blanchon/UC_Merced")
     funcitions = [
         image_interpolation.py_nearest_neighbor_interpolate,
         image_interpolation.py_bilinear_interpolate,
