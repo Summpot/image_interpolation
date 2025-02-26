@@ -18,8 +18,8 @@ def bench_other():
     pass
 
 
-def run_benchmarks(runner, dataset, label, image, func, scale_factor):
-    bench_time(runner, func, dataset, label, image, scale_factor)
+def run_benchmarks(runner, dataset, label, index, image, func, scale_factor):
+    bench_time(runner, func, dataset, label, index, image, scale_factor)
     runner.metadata["image_size"] = str(image.shape)
     runner.metadata["scale_factor"] = str(scale_factor)
     runner.metadata["interpolation_method"] = func.__name__
