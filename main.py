@@ -46,7 +46,7 @@ if __name__ == "__main__":
     scale_factor = 2.0
     for data in dataset.to_iterable_dataset():
         image = np.array(data["image"], dtype=np.float64, ndmin=3)
-        label = data["label"]
+        label = label_names[data["label"]]
         index = data["index"]
         for func in funcitions:
             run_benchmarks(runner, "uc_merced", label, index, image, func, scale_factor)
