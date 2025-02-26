@@ -29,8 +29,8 @@ def run_benchmarks(dataset, label, image, func):
 if __name__ == "__main__":
     dataset = load_dataset("blanchon/UC_Merced", split="train", streaming=True)
     funcitions = [
-        image_interpolation.py_nearest_neighbor_interpolate,
-        image_interpolation.py_bilinear_interpolate,
+        image_interpolation.nearest_neighbor,
+        image_interpolation.bilinear,
     ]
     scale_factor = 2.0
     for row in dataset:
