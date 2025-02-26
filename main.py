@@ -7,7 +7,7 @@ from datasets import load_dataset, Image
 
 def bench_time(runner, func, dataset, label, image1, scale_factor):
     runner.bench_func(
-        f"{dataset}/{label}/{func.__name__}",
+        f"{dataset}-{label}-{func.__name__}",
         func,
         image1,
         scale_factor,
@@ -26,15 +26,22 @@ def run_benchmarks(dataset, label, image, func):
     runner.metadata["interpolation_method"] = func.__name__
 
 
+def process(item):
+    pass
+
+
 if __name__ == "__main__":
-    dataset = load_dataset("blanchon/UC_Merced", split="train", streaming=True)
+    dataset = load_dataset("blanchon/UC_Merced", split="train")
+    label_names = dataset.features["label"].names
     funcitions = [
         image_interpolation.nearest_neighbor,
         image_interpolation.bilinear,
     ]
     scale_factor = 2.0
-    for row in dataset:
+    for row in dataset.to_iterable_dataset():
         image = np.array(row["image"], dtype=np.float64, ndmin=2)
         label = row["label"]
         for func in funcitions:
-            run_benchmarks(dataset, label, image, func)
+            print(dataset, label_names[label], image.shape, scale_factor, func.__name__)
+            run_benchmarks("uc_merced", label, image, func)
+            print("finished")
