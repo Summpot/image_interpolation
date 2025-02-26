@@ -5,11 +5,11 @@ import polars as pl
 from datasets import load_dataset
 
 
-def bench_time(runner, func, dataset, label, image, scale_factor):
+def bench_time(runner, func, dataset, label, image1, scale_factor):
     runner.bench_func(
         f"{dataset}/{label}/{func.__name__}",
         func,
-        image,
+        image1,
         scale_factor,
     )
 
