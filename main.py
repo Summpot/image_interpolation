@@ -42,6 +42,4 @@ if __name__ == "__main__":
         image = np.array(row["image"], dtype=np.float64, ndmin=3)
         label = row["label"]
         for func in funcitions:
-            print(dataset, label_names[label], image.shape, scale_factor, func.__name__)
             run_benchmarks(runner, "uc_merced", label, image, func, scale_factor)
-            print("finished")
