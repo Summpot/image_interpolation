@@ -34,7 +34,7 @@ if __name__ == "__main__":
     ]
     scale_factor = 2.0
     for row in dataset:
-        image = np.array(row["image"]).tolist()
+        image = np.array(row["image"], dtype=np.float64, ndmin=2)
         label = row["label"]
         for func in funcitions:
             run_benchmarks(dataset, label, image, func)
