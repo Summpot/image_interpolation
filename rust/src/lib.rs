@@ -1,24 +1,25 @@
 use pyo3::prelude::*;
 
-use ndarray::{Array2, ArrayView2};
-use numpy::{IntoPyArray, PyArray, PyArray2, PyArrayDyn, PyReadonlyArray2, ToPyArray};
-use pyo3::exceptions::PyValueError;
+use ndarray::{Array3, ArrayView3};
+use numpy::{PyArray3, PyReadonlyArray3, ToPyArray};
 
 #[pymodule]
 fn image_interpolation(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Nearest Neighbor Interpolation
-    fn nearest_neighbor(image: ArrayView2<f64>, scale_factor: f64) -> Array2<f64> {
-        let (height, width) = image.dim();
+    fn nearest_neighbor(image: ArrayView3<f64>, scale_factor: f64) -> Array3<f64> {
+        let (height, width, channels) = image.dim();
         let new_height = (height as f64 * scale_factor) as usize;
         let new_width = (width as f64 * scale_factor) as usize;
-        let mut new_image = Array2::zeros((new_height, new_width));
+        let mut new_image = Array3::zeros((new_height, new_width, channels));
 
         for y in 0..new_height {
             for x in 0..new_width {
-                let original_x = (x as f64 / scale_factor) as usize;
-                let original_y = (y as f64 / scale_factor) as usize;
+                let original_x = (x as f64 / scale_factor).round() as usize;
+                let original_y = (y as f64 / scale_factor).round() as usize;
                 if original_x < width && original_y < height {
-                    new_image[[y, x]] = image[[original_y, original_x]];
+                    for channel in 0..channels {
+                        new_image[[y, x, channel]] = image[[original_y, original_x, channel]];
+                    }
                 }
             }
         }
@@ -26,11 +27,11 @@ fn image_interpolation(m: &Bound<'_, PyModule>) -> PyResult<()> {
     }
 
     // Bilinear Interpolation
-    fn bilinear(image: ArrayView2<f64>, scale_factor: f64) -> Array2<f64> {
-        let (height, width) = image.dim();
+    fn bilinear(image: ArrayView3<f64>, scale_factor: f64) -> Array3<f64> {
+        let (height, width, channels) = image.dim();
         let new_height = (height as f64 * scale_factor) as usize;
         let new_width = (width as f64 * scale_factor) as usize;
-        let mut new_image = Array2::zeros((new_height, new_width));
+        let mut new_image = Array3::zeros((new_height, new_width, channels));
 
         for y in 0..new_height {
             for x in 0..new_width {
@@ -44,9 +45,12 @@ fn image_interpolation(m: &Bound<'_, PyModule>) -> PyResult<()> {
                 let dx = fx - x0 as f64;
                 let dy = fy - y0 as f64;
 
-                let top = image[[y0, x0]] * (1.0 - dx) + image[[y0, x1]] * dx;
-                let bottom = image[[y1, x0]] * (1.0 - dx) + image[[y1, x1]] * dx;
-                new_image[[y, x]] = top * (1.0 - dy) + bottom * dy;
+                for channel in 0..channels {
+                    let top = image[[y0, x0, channel]] * (1.0 - dx) + image[[y0, x1, channel]] * dx;
+                    let bottom =
+                        image[[y1, x0, channel]] * (1.0 - dx) + image[[y1, x1, channel]] * dx;
+                    new_image[[y, x, channel]] = top * (1.0 - dy) + bottom * dy;
+                }
             }
         }
         new_image
@@ -56,9 +60,9 @@ fn image_interpolation(m: &Bound<'_, PyModule>) -> PyResult<()> {
     #[pyo3(name = "nearest_neighbor",signature=(image, scale_factor))]
     fn py_nearest_neighbor<'py>(
         py: Python<'py>,
-        image: PyReadonlyArray2<'py, f64>,
+        image: PyReadonlyArray3<'py, f64>,
         scale_factor: f64,
-    ) -> Bound<'py, PyArray2<f64>> {
+    ) -> Bound<'py, PyArray3<f64>> {
         let image_array = image.as_array();
         let interpolated_array = nearest_neighbor(image_array, scale_factor);
         interpolated_array.to_pyarray(py)
@@ -68,9 +72,9 @@ fn image_interpolation(m: &Bound<'_, PyModule>) -> PyResult<()> {
     #[pyo3(name = "bilinear",signature=(image, scale_factor))]
     fn py_bilinear<'py>(
         py: Python<'py>,
-        image: PyReadonlyArray2<'py, f64>,
+        image: PyReadonlyArray3<'py, f64>,
         scale_factor: f64,
-    ) -> Bound<'py, PyArray2<f64>> {
+    ) -> Bound<'py, PyArray3<f64>> {
         let image_array = image.as_array();
         let interpolated_array = bilinear(image_array, scale_factor);
         interpolated_array.to_pyarray(py)
