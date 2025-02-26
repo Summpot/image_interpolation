@@ -53,7 +53,7 @@ fn image_interpolation(m: &Bound<'_, PyModule>) -> PyResult<()> {
     }
 
     #[pyfn(m)]
-    #[pyo3(name = "nearest_neighbor")]
+    #[pyo3(name = "nearest_neighbor",signature=(image, scale_factor))]
     fn py_nearest_neighbor<'py>(
         py: Python<'py>,
         image: PyReadonlyArray2<'py, f64>,
@@ -65,7 +65,7 @@ fn image_interpolation(m: &Bound<'_, PyModule>) -> PyResult<()> {
     }
 
     #[pyfn(m)]
-    #[pyo3(name = "bilinear")]
+    #[pyo3(name = "bilinear",signature=(image, scale_factor))]
     fn py_bilinear<'py>(
         py: Python<'py>,
         image: PyReadonlyArray2<'py, f64>,
