@@ -232,6 +232,11 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/4c/37/22ef7675bef4ffe9577b937ddca2e22791534cbbe11c30714972a91532dc/datasets-3.3.2-py3-none-any.whl", hash = "sha256:fdaf3d5d70242621210b044e9b9b15a56e908bfc3e9d077bcf5605ac390f70bd", size = 485360 },
 ]
 
+[package.optional-dependencies]
+vision = [
+    { name = "pillow" },
+]
+
 [[package]]
 name = "dill"
 version = "0.3.8"
@@ -364,7 +369,7 @@ wheels = [
 name = "image-interpolation"
 source = { editable = "." }
 dependencies = [
-    { name = "datasets" },
+    { name = "datasets", extra = ["vision"] },
     { name = "numpy" },
     { name = "pillow" },
     { name = "polars" },
@@ -374,7 +379,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "datasets", specifier = ">=3.3.2" },
+    { name = "datasets", extras = ["vision"], specifier = ">=3.3.2" },
     { name = "numpy", specifier = ">=2.2.3" },
     { name = "pillow", specifier = ">=11.1.0" },
     { name = "polars", specifier = ">=1.23.0" },

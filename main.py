@@ -2,7 +2,7 @@ import numpy as np
 import image_interpolation
 import pyperf
 import polars as pl
-from datasets import load_dataset
+from datasets import load_dataset, Image
 
 
 def bench_time(runner, func, dataset, label, image1, scale_factor):
