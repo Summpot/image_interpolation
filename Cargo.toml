@@ -1,0 +1,10 @@
+[package]
+name = "image_interpolation"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "image_interpolation"
+
+[dependencies]
+ndarray = "0.16.1"
