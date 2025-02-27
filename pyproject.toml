@@ -3,7 +3,7 @@ requires = ["maturin>=1.8,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "image_interpolation"
+name = "rust"
 requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Rust",
@@ -13,11 +13,14 @@ classifiers = [
 dynamic = ["version"]
 dependencies = [
     "datasets[vision]>=3.3.2",
+    "imagehash>=4.3.2",
     "numpy>=2.2.3",
+    "opencv-python>=4.11.0.86",
     "pillow>=11.1.0",
     "polars>=1.23.0",
     "pyperf>=2.8.0",
     "ruff>=0.9.7",
+    "scikit-image>=0.25.2",
 ]
 [tool.maturin]
 features = ["pyo3/extension-module"]

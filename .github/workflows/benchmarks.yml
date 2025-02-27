@@ -16,10 +16,8 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --all-extras --dev
-      - run: uv run main.py -o time.json --stats
-      - run: uv run main.py -o memory.json --stats
-      - run: uv run pyperf stats time.json
-      - run: uv run pyperf stats memory.json
+      - run: uv run bench.py -o time.json --stats
+      - run: uv run bench.py -o memory.json --stats --tracemalloc
       - uses: actions/upload-artifact@v4
         with:
           name: Results
