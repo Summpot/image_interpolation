@@ -16,12 +16,10 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --all-extras --dev
-      - run: uv run bench.py -o time.json --stats
-      - run: uv run bench.py -o memory.json --stats --tracemalloc
+      - run: uv run bench.py -o time.json --stats --fast
+      # - run: uv run bench.py -o memory.json --stats --tracemalloc --fast
       - uses: actions/upload-artifact@v4
         with:
           name: Results
-          path: |
-            time.json
-            memory.json
+          path: ./*.json
       - run: uv cache prune --ci
