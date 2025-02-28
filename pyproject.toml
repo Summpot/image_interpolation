@@ -20,7 +20,7 @@ dependencies = [
     "pillow>=11.1.0",
     "polars>=1.23.0",
     "pyperf>=2.8.0",
-    "ruff>=0.9.7",
+    "ruff>=0.9.8",
     "scikit-image>=0.25.2",
 ]
 [tool.maturin]
