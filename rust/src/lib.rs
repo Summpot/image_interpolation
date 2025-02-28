@@ -5,8 +5,7 @@ use numpy::{PyArray3, PyReadonlyArray3, ToPyArray};
 
 #[pymodule]
 fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    // Nearest Neighbor Interpolation
-    fn nearest_neighbor(image: ArrayView3<f64>, scale_factor: f64) -> Array3<f64> {
+    fn nearest_neighbor(image: ArrayView3<u8>, scale_factor: f64) -> Array3<u8> {
         let (height, width, channels) = image.dim();
         let new_height = (height as f64 * scale_factor) as usize;
         let new_width = (width as f64 * scale_factor) as usize;
@@ -26,8 +25,7 @@ fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
         new_image
     }
 
-    // Bilinear Interpolation
-    fn bilinear(image: ArrayView3<f64>, scale_factor: f64) -> Array3<f64> {
+    fn bilinear(image: ArrayView3<u8>, scale_factor: f64) -> Array3<u8> {
         let (height, width, channels) = image.dim();
         let new_height = (height as f64 * scale_factor) as usize;
         let new_width = (width as f64 * scale_factor) as usize;
@@ -46,19 +44,20 @@ fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
                 let dy = fy - y0 as f64;
 
                 for channel in 0..channels {
-                    let top = image[[y0, x0, channel]] * (1.0 - dx) + image[[y0, x1, channel]] * dx;
-                    let bottom =
-                        image[[y1, x0, channel]] * (1.0 - dx) + image[[y1, x1, channel]] * dx;
-                    new_image[[y, x, channel]] = top * (1.0 - dy) + bottom * dy;
+                    // 将 u8 转换为 f64 进行计算
+                    let top_f64 = (image[[y0, x0, channel]] as f64) * (1.0 - dx) + (image[[y0, x1, channel]] as f64) * dx;
+                    let bottom_f64 = (image[[y1, x0, channel]] as f64) * (1.0 - dx) + (image[[y1, x1, channel]] as f64) * dx;
+                    let value_f64 = top_f64 * (1.0 - dy) + bottom_f64 * dy;
+                    // 钳制到 0-255 范围并转换为 u8
+                    new_image[[y, x, channel]] = value_f64.round().max(0.0).min(255.0) as u8;
                 }
             }
         }
         new_image
     }
 
-    // Bicubic Interpolation
     fn bicubic_weight(t: f64) -> f64 {
-        let a = -0.5; // Common parameter for bicubic interpolation
+        let a = -0.5;
         let t = t.abs();
         if t <= 1.0 {
             (a + 2.0) * t.powi(3) - (a + 3.0) * t.powi(2) + 1.0
@@ -69,7 +68,7 @@ fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
         }
     }
 
-    fn bicubic(image: ArrayView3<f64>, scale_factor: f64) -> Array3<f64> {
+    fn bicubic(image: ArrayView3<u8>, scale_factor: f64) -> Array3<u8> {
         let (height, width, channels) = image.dim();
         let new_height = (height as f64 * scale_factor) as usize;
         let new_width = (width as f64 * scale_factor) as usize;
@@ -83,24 +82,25 @@ fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
                 let y0 = fy.floor() as isize;
 
                 for channel in 0..channels {
-                    let mut value = 0.0;
+                    let mut value_f64 = 0.0;
                     for dy in -1..=2 {
                         for dx in -1..=2 {
                             let px = (x0 + dx).max(0).min(width as isize - 1) as usize;
                             let py = (y0 + dy).max(0).min(height as isize - 1) as usize;
                             let wx = bicubic_weight(fx - (x0 + dx) as f64);
                             let wy = bicubic_weight(fy - (y0 + dy) as f64);
-                            value += image[[py, px, channel]] * wx * wy;
+                            // 转换为 f64 进行计算
+                            value_f64 += (image[[py, px, channel]] as f64) * wx * wy;
                         }
                     }
-                    new_image[[y, x, channel]] = value.max(0.0).min(1.0); // Clamp to [0, 1]
+                    // 钳制到 0-255 范围并转换为 u8
+                    new_image[[y, x, channel]] = value_f64.round().max(0.0).min(255.0) as u8;
                 }
             }
         }
         new_image
     }
 
-    // Lanczos Interpolation (using a=3 for 3-lobe Lanczos)
     fn lanczos_weight(t: f64, a: f64) -> f64 {
         if t.abs() < f64::EPSILON {
             1.0
@@ -112,7 +112,7 @@ fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
         }
     }
 
-    fn lanczos(image: ArrayView3<f64>, scale_factor: f64) -> Array3<f64> {
+    fn lanczos(image: ArrayView3<u8>, scale_factor: f64) -> Array3<u8> {
         let (height, width, channels) = image.dim();
         let new_height = (height as f64 * scale_factor) as usize;
         let new_width = (width as f64 * scale_factor) as usize;
@@ -127,78 +127,75 @@ fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
                 let y0 = fy.floor() as isize;
 
                 for channel in 0..channels {
-                    let mut value = 0.0;
+                    let mut value_f64 = 0.0;
                     let mut weight_sum = 0.0;
-                    for dy in -2..=2 {
-                        // 5x5 neighborhood for a=3
+                    for dy in -2..=2 { // 5x5 neighborhood for a=3
                         for dx in -2..=2 {
                             let px = (x0 + dx).max(0).min(width as isize - 1) as usize;
                             let py = (y0 + dy).max(0).min(height as isize - 1) as usize;
                             let wx = lanczos_weight(fx - (x0 + dx) as f64, a);
                             let wy = lanczos_weight(fy - (y0 + dy) as f64, a);
                             let weight = wx * wy;
-                            value += image[[py, px, channel]] * weight;
+                            // 转换为 f64 进行计算
+                            value_f64 += (image[[py, px, channel]] as f64) * weight;
                             weight_sum += weight;
                         }
                     }
-                    new_image[[y, x, channel]] = (value / weight_sum).max(0.0).min(1.0);
-                    // Normalize and clamp
+                    // 归一化、钳制到 0-255 范围并转换为 u8
+                    new_image[[y, x, channel]] = (value_f64 / weight_sum).round().max(0.0).min(255.0) as u8;
                 }
             }
         }
         new_image
     }
 
-    // Python bindings for Nearest Neighbor
     #[pyfn(m)]
     #[pyo3(name = "nearest_neighbor", signature=(image, scale_factor))]
     fn py_nearest_neighbor<'py>(
         py: Python<'py>,
-        image: PyReadonlyArray3<'py, f64>,
+        image: PyReadonlyArray3<'py, u8>, 
         scale_factor: f64,
-    ) -> Bound<'py, PyArray3<f64>> {
+    ) -> Bound<'py, PyArray3<u8>> { 
         let image_array = image.as_array();
         let interpolated_array = nearest_neighbor(image_array, scale_factor);
         interpolated_array.to_pyarray(py)
     }
 
-    // Python bindings for Bilinear
     #[pyfn(m)]
     #[pyo3(name = "bilinear", signature=(image, scale_factor))]
     fn py_bilinear<'py>(
         py: Python<'py>,
-        image: PyReadonlyArray3<'py, f64>,
+        image: PyReadonlyArray3<'py, u8>, 
         scale_factor: f64,
-    ) -> Bound<'py, PyArray3<f64>> {
+    ) -> Bound<'py, PyArray3<u8>> { 
         let image_array = image.as_array();
         let interpolated_array = bilinear(image_array, scale_factor);
         interpolated_array.to_pyarray(py)
     }
 
-    // Python bindings for Bicubic
     #[pyfn(m)]
     #[pyo3(name = "bicubic", signature=(image, scale_factor))]
     fn py_bicubic<'py>(
         py: Python<'py>,
-        image: PyReadonlyArray3<'py, f64>,
+        image: PyReadonlyArray3<'py, u8>, 
         scale_factor: f64,
-    ) -> Bound<'py, PyArray3<f64>> {
+    ) -> Bound<'py, PyArray3<u8>> { 
         let image_array = image.as_array();
         let interpolated_array = bicubic(image_array, scale_factor);
         interpolated_array.to_pyarray(py)
     }
 
-    // Python bindings for Lanczos
     #[pyfn(m)]
     #[pyo3(name = "lanczos", signature=(image, scale_factor))]
     fn py_lanczos<'py>(
         py: Python<'py>,
-        image: PyReadonlyArray3<'py, f64>,
+        image: PyReadonlyArray3<'py, u8>, 
         scale_factor: f64,
-    ) -> Bound<'py, PyArray3<f64>> {
+    ) -> Bound<'py, PyArray3<u8>> { 
         let image_array = image.as_array();
         let interpolated_array = lanczos(image_array, scale_factor);
         interpolated_array.to_pyarray(py)
     }
+
     Ok(())
 }

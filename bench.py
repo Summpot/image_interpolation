@@ -1,9 +1,9 @@
 import itertools
 import numpy as np
 import pyperf
-import opencv
-import skimage
-import rust
+from src import opencv
+from src import skimage
+from src import rust
 import inspect
 
 
@@ -13,9 +13,14 @@ def prepare_image(height, width):
 
 def get_public_functions(module):
     return [
-        obj
-        for name, obj in inspect.getmembers(module)
-        if inspect.isfunction(obj) and not name.startswith("_")
+        member
+        for name, member in inspect.getmembers(module)
+        if inspect.isroutine(member)
+        and not name.startswith("_")
+        and (
+            getattr(member, "__module__") == module.__name__
+            or inspect.isbuiltin(member)  # for pyo3
+        )
     ]
 
 
@@ -40,5 +45,10 @@ if __name__ == "__main__":
             func,
             image,
             scale_factor,
-            metadata=dict(module=func.__module__,func=func.__name__,image_size=f"{image_size[0]}*{image_size[1]}", scale_factor=scale_factor),
+            metadata=dict(
+                module=func.__module__,
+                func=func.__name__,
+                image_size=f"{image_size[0]}*{image_size[1]}",
+                scale_factor=scale_factor,
+            ),
         )
