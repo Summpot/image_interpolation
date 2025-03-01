@@ -8,14 +8,18 @@ def _interpolate(image, scale_factor, interpolation_method):
         image, (new_width, new_height), interpolation=interpolation_method
     )
 
+
 def nearest_neighbor(image, scale_factor):
-    return _interpolate(image, scale_factor, cv2.INTER_NEAREST)
+    return _interpolate(image, scale_factor, cv2.INTER_NEAREST_EXACT)
+
 
 def bilinear(image, scale_factor):
-    return _interpolate(image, scale_factor, cv2.INTER_LINEAR)
+    return _interpolate(image, scale_factor, cv2.INTER_LINEAR_EXACT)
+
 
 def bicubic(image, scale_factor):
     return _interpolate(image, scale_factor, cv2.INTER_CUBIC)
+
 
 def lanczos(image, scale_factor):
     return _interpolate(image, scale_factor, cv2.INTER_LANCZOS4)

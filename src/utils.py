@@ -1,5 +1,7 @@
 import inspect
 
+import cv2
+
 
 def get_public_functions(module):
     return [
@@ -12,3 +14,9 @@ def get_public_functions(module):
             or inspect.isbuiltin(member)  # for pyo3
         )
     ]
+
+
+def downsample_image(image, target_shape):
+    return cv2.resize(
+        image, dsize=(target_shape[1], target_shape[0]), interpolation=cv2.INTER_AREA
+    )
