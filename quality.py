@@ -72,6 +72,11 @@ if __name__ == "__main__":
             "label_col": "label",
         },
         {
+            "name": "AI-Lab-Makerere/beans",
+            "image_col": "image",
+            "label_col": "labels",
+        },
+        {
             "name": "ylecun/mnist",
             "image_col": "image",
             "label_col": "label",
@@ -106,7 +111,7 @@ if __name__ == "__main__":
             print(f"Error loading dataset {dataset_name}: {e}")
             continue
         label_names = dataset.features["label"].names
-        for image_index, example in enumerate(dataset):
+        for image_index, example in enumerate(dataset.select(range(5000))):
             original_image = example[image_col]
             if not isinstance(original_image, Image.Image):
                 original_image = Image.fromarray(original_image)
