@@ -95,7 +95,6 @@ if __name__ == "__main__":
 
     test_data_records = []  # 存储测试数据的列表
 
-    df = pl.DataFrame(test_data_records)
     for dataset_info in datasets_config:
         dataset_name = dataset_info["name"]
         image_col = dataset_info["image_col"]
@@ -105,14 +104,12 @@ if __name__ == "__main__":
             dataset = load_dataset(dataset_name, split="train")
         except Exception as e:
             print(f"Error loading dataset {dataset_name}: {e}")
-            continue 
+            continue
         label_names = dataset.features["label"].names
         for image_index, example in enumerate(dataset):
             original_image = example[image_col]
             if not isinstance(original_image, Image.Image):
-                original_image = Image.fromarray(
-                    original_image
-                )
+                original_image = Image.fromarray(original_image)
             original_image_np = np.array(original_image)
             if original_image_np.ndim == 2:
                 original_image_np = np.expand_dims(original_image_np, axis=2)
@@ -147,8 +144,7 @@ if __name__ == "__main__":
                         "dhash_diff": metrics["dhash_diff"],
                         "whash_diff": metrics["whash_diff"],
                     }
-                    df.
-                    test_data_records.append(record)
-                    
 
-        df_results.write_json("quality.json")
+                    test_data_records.append(record)
+    df_results = pl.DataFrame(test_data_records)
+    df_results.write_json("quality.json")
