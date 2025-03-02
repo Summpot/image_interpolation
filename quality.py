@@ -13,6 +13,7 @@ from skimage.metrics import (
 from PIL import Image
 import imagehash
 import polars as pl
+from rich.progress import track
 
 
 from utils import downsample_image, get_public_functions
@@ -111,7 +112,7 @@ if __name__ == "__main__":
             print(f"Error loading dataset {dataset_name}: {e}")
             continue
         label_names = dataset.features["label"].names
-        for image_index, example in enumerate(dataset.select(range(5000))):
+        for example in track(dataset.select(range(5000)), description=dataset_name):
             original_image = example[image_col]
             if not isinstance(original_image, Image.Image):
                 original_image = Image.fromarray(original_image)
@@ -138,7 +139,6 @@ if __name__ == "__main__":
                     record = {
                         "dataset_name": dataset_name,
                         "label_name": label_name,
-                        "image_index": image_index,
                         "interp_algorithm": interp_name,
                         "scale_factor": scale_factor,
                         "mse": metrics["mse"],
