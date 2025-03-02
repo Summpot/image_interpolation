@@ -70,22 +70,17 @@ if __name__ == "__main__":
             "name": "uoft-cs/cifar10",
             "image_col": "img",
             "label_col": "label",
-        },  # 添加 label_col
+        },
         {
             "name": "ylecun/mnist",
             "image_col": "image",
             "label_col": "label",
-        },  # 添加 label_col
-        {
-            "name": "AI-Lab-Makerere/beans",
-            "image_col": "image",
-            "label_col": "labels",  #  beans 数据集的标签列名是 labels
         },
         {
             "name": "blanchon/UC_Merced",
             "image_col": "image",
             "label_col": "label",
-        },  # 添加 label_col
+        },
     ]
     modules = [opencv, skimage, rust]
     functions = list(
@@ -100,6 +95,7 @@ if __name__ == "__main__":
 
     test_data_records = []  # 存储测试数据的列表
 
+    df = pl.DataFrame(test_data_records)
     for dataset_info in datasets_config:
         dataset_name = dataset_info["name"]
         image_col = dataset_info["image_col"]
@@ -109,17 +105,15 @@ if __name__ == "__main__":
             dataset = load_dataset(dataset_name, split="train")
         except Exception as e:
             print(f"Error loading dataset {dataset_name}: {e}")
-            continue  # 如果数据集加载失败，则跳过
-
-        print(f"Processing dataset: {dataset_name}")
+            continue 
         label_names = dataset.features["label"].names
         for image_index, example in enumerate(dataset):
-            original_image = example[image_col]  # 从 datasets 中获取的是 PIL Image 对象
-            if not isinstance(original_image, Image.Image):  # 确保是 PIL Image 对象
+            original_image = example[image_col]
+            if not isinstance(original_image, Image.Image):
                 original_image = Image.fromarray(
                     original_image
-                )  # 如果是 NumPy 数组或其他格式，尝试转换为 PIL Image
-            original_image_np = np.array(original_image)  # 转换为 NumPy 数组用于计算
+                )
+            original_image_np = np.array(original_image)
             if original_image_np.ndim == 2:
                 original_image_np = np.expand_dims(original_image_np, axis=2)
             label_name = (
@@ -128,7 +122,6 @@ if __name__ == "__main__":
 
             for interp_name, interp_func in functions:
                 for scale_factor in scale_factors:
-                    print(original_image_np.shape)
                     interpolated_image_np = interp_func(original_image_np, scale_factor)
                     if (
                         interpolated_image_np.ndim == 3
@@ -137,11 +130,6 @@ if __name__ == "__main__":
                         interpolated_image_np = np.squeeze(
                             interpolated_image_np, axis=2
                         )
-                    print(
-                        interpolated_image_np.shape,
-                        interpolated_image_np.dtype,
-                        interp_name,
-                    )
                     interpolated_image = Image.fromarray(interpolated_image_np)
                     metrics = calculate_metrics(original_image, interpolated_image)
 
@@ -159,12 +147,8 @@ if __name__ == "__main__":
                         "dhash_diff": metrics["dhash_diff"],
                         "whash_diff": metrics["whash_diff"],
                     }
+                    df.
                     test_data_records.append(record)
-                    print(
-                        f"  - Image {image_index}, Interp: {interp_name},Scale: {scale_factor}, MSE: {metrics['mse']:.4f}, PSNR: {metrics['psnr']:.2f}, SSIM: {metrics['ssim']:.4f}"
-                    )  # 打印部分结果
+                    
 
-        df_results = pl.DataFrame(test_data_records)
-        print("\n--- 测试结果 (部分) ---")
-        print(df_results.head())
         df_results.write_json("quality.json")
