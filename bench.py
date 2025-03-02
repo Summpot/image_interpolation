@@ -20,8 +20,8 @@ if __name__ == "__main__":
             get_public_functions(module) for module in modules
         )
     )
-    image_sizes = [(2**i, 2**i) for i in range(4, 6)]
-    scale_factors = [2**i for i in range(1, 2)]
+    image_sizes = [(2**i, 2**i) for i in range(4, 8)]
+    scale_factors = [2**i for i in range(1, 3)]
 
     runner = pyperf.Runner()
 

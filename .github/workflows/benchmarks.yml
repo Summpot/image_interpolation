@@ -19,7 +19,7 @@ jobs:
             - run: uv run bench.py -o time.json --stats --fast
             - uses: actions/upload-artifact@v4
               with:
-                  name: Results
+                  name: time
                   path: ./*.json
             - run: uv cache prune --ci
     memory:
@@ -33,7 +33,7 @@ jobs:
             - run: uv run bench.py -o memory.json --stats --tracemalloc --fast
             - uses: actions/upload-artifact@v4
               with:
-                  name: Results
+                  name: memory
                   path: ./*.json
             - run: uv cache prune --ci
     quality:
@@ -47,6 +47,6 @@ jobs:
             - run: uv run quality.py
             - uses: actions/upload-artifact@v4
               with:
-                  name: Results
+                  name: quality
                   path: ./*.json
             - run: uv cache prune --ci

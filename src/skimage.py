@@ -1,4 +1,6 @@
+import numpy as np
 from skimage.transform import resize
+
 
 def _interpolate(image, scale_factor, order):
     new_shape = (
@@ -6,14 +8,18 @@ def _interpolate(image, scale_factor, order):
         int(image.shape[1] * scale_factor),
         image.shape[2],
     )
-    return resize(image, new_shape, order=order, anti_aliasing=False)
+    return (resize(image, new_shape, order=order, anti_aliasing=False) * 255).astype(
+        np.uint8
+    )
+
 
 def nearest_neighbor(image, scale_factor):
     return _interpolate(image, scale_factor, order=0)
-    
+
+
 def bilinear(image, scale_factor):
     return _interpolate(image, scale_factor, order=1)
 
+
 def bicubic(image, scale_factor):
     return _interpolate(image, scale_factor, order=3)
-

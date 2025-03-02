@@ -1,4 +1,5 @@
 import cv2
+import numpy as np
 
 
 def _interpolate(image, scale_factor, interpolation_method):
@@ -18,7 +19,7 @@ def bilinear(image, scale_factor):
 
 
 def bicubic(image, scale_factor):
-    return _interpolate(image, scale_factor, cv2.INTER_CUBIC)
+    return (_interpolate(image, scale_factor, cv2.INTER_CUBIC) * 255).astype(np.uint8)
 
 
 def lanczos(image, scale_factor):

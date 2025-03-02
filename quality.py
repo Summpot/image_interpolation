@@ -1,4 +1,5 @@
 import itertools
+import cv2
 from datasets import load_dataset
 import numpy as np
 from src import opencv
@@ -17,49 +18,39 @@ import polars as pl
 from utils import downsample_image, get_public_functions
 
 
-def mean_absolute_error(image1, image2):
-    """
-    计算两幅图像的平均绝对误差 (MAE)。
-
-    Args:
-        image1 (ndarray): 第一幅图像，NumPy 数组。
-        image2 (ndarray): 第二幅图像，NumPy 数组。
-
-    Returns:
-        float: 两幅图像的 MAE 值。
-    """
-    # 1. 计算像素差值的绝对值
-    abs_error = np.abs(image1 - image2)
-
-    # 2. 计算绝对误差的平均值
-    mae = np.mean(abs_error)
-    return mae
+def convert_to_grayscale(image):
+    if image.ndim == 3:
+        if image.shape[-1] == 1:
+            image = np.squeeze(image, axis=-1)
+        elif image.shape[-1] == 3:
+            image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    if (
+        image.dtype == np.float32
+        or image.dtype == np.float64
+        or image.dtype == np.float16
+    ):
+        image = (image * 255).astype(np.uint8)
+    return image
 
 
 def calculate_metrics(original_image, interpolated_image):
-    downsampled_image = downsample_image(interpolated_image, original_image.shape)
-    print(original_image.shape, interpolated_image.shape, downsampled_image.shape)
-    original_gray = np.array(Image.fromarray(original_image).convert("L"))
-    interpolated_gray = np.array(Image.fromarray(downsampled_image).convert("L"))
-    mse = mean_squared_error(original_image, downsampled_image)
-    psnr = peak_signal_noise_ratio(original_image, downsampled_image)
-    ssim = structural_similarity(
-        original_gray, interpolated_gray
-    )  # SSIM 通常在灰度图上计算
+    original_image_np = np.array(original_image)
+    interpolated_image_np = np.array(interpolated_image)
+    downsampled_image_np = downsample_image(
+        interpolated_image_np, original_image_np.shape
+    )
+    original_gray = convert_to_grayscale(original_image_np)
+    downsampled_gray = convert_to_grayscale(downsampled_image_np)
+    mse = mean_squared_error(original_image_np, downsampled_image_np)
+    psnr = peak_signal_noise_ratio(original_image_np, downsampled_image_np)
+    ssim = structural_similarity(original_gray, downsampled_gray)
 
-    # 计算各种 ImageHash
-    hash_a = imagehash.average_hash(
-        Image.fromarray(original_image)
-    ) - imagehash.average_hash(Image.fromarray(interpolated_image))
-    hash_p = imagehash.phash(Image.fromarray(original_image)) - imagehash.phash(
-        Image.fromarray(interpolated_image)
+    hash_a = imagehash.average_hash(original_image) - imagehash.average_hash(
+        interpolated_image
     )
-    hash_d = imagehash.dhash(Image.fromarray(original_image)) - imagehash.dhash(
-        Image.fromarray(interpolated_image)
-    )
-    hash_w = imagehash.whash(Image.fromarray(original_image)) - imagehash.whash(
-        Image.fromarray(interpolated_image)
-    )
+    hash_p = imagehash.phash(original_image) - imagehash.phash(interpolated_image)
+    hash_d = imagehash.dhash(original_image) - imagehash.dhash(interpolated_image)
+    hash_w = imagehash.whash(original_image) - imagehash.whash(interpolated_image)
 
     metrics_dict = {
         "mse": mse,
@@ -96,7 +87,7 @@ if __name__ == "__main__":
             "label_col": "label",
         },  # 添加 label_col
     ]
-    modules = [rust]
+    modules = [opencv, skimage, rust]
     functions = list(
         itertools.chain.from_iterable(
             (get_public_functions(module) for module in modules)
@@ -105,7 +96,7 @@ if __name__ == "__main__":
     functions = [
         (f"{func.__module__.split('.')[1]}.{func.__name__}", func) for func in functions
     ]
-    scale_factors = [2**i for i in range(1, 2)]
+    scale_factors = [2**i for i in range(1, 3)]
 
     test_data_records = []  # 存储测试数据的列表
 
@@ -129,22 +120,30 @@ if __name__ == "__main__":
                     original_image
                 )  # 如果是 NumPy 数组或其他格式，尝试转换为 PIL Image
             original_image_np = np.array(original_image)  # 转换为 NumPy 数组用于计算
-
+            if original_image_np.ndim == 2:
+                original_image_np = np.expand_dims(original_image_np, axis=2)
             label_name = (
                 label_names[example[label_col]] if label_col in example else "unknown"
             )
 
             for interp_name, interp_func in functions:
                 for scale_factor in scale_factors:
+                    print(original_image_np.shape)
                     interpolated_image_np = interp_func(original_image_np, scale_factor)
+                    if (
+                        interpolated_image_np.ndim == 3
+                        and interpolated_image_np.shape[-1] == 1
+                    ):
+                        interpolated_image_np = np.squeeze(
+                            interpolated_image_np, axis=2
+                        )
                     print(
-                        interp_name,
-                        original_image_np.dtype,
+                        interpolated_image_np.shape,
                         interpolated_image_np.dtype,
+                        interp_name,
                     )
-                    metrics = calculate_metrics(
-                        original_image_np, interpolated_image_np
-                    )  # 计算指标
+                    interpolated_image = Image.fromarray(interpolated_image_np)
+                    metrics = calculate_metrics(original_image, interpolated_image)
 
                     record = {
                         "dataset_name": dataset_name,
