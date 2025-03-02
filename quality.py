@@ -67,11 +67,11 @@ def calculate_metrics(original_image, interpolated_image):
 
 if __name__ == "__main__":
     datasets_config = [
-        {
-            "name": "uoft-cs/cifar10",
-            "image_col": "img",
-            "label_col": "label",
-        },
+        # {
+        #     "name": "uoft-cs/cifar10",
+        #     "image_col": "img",
+        #     "label_col": "label",
+        # },
         {
             "name": "AI-Lab-Makerere/beans",
             "image_col": "image",
@@ -111,8 +111,10 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Error loading dataset {dataset_name}: {e}")
             continue
-        label_names = dataset.features["label"].names
-        for example in track(dataset.select(range(5000)), description=dataset_name):
+        label_names = dataset.features[label_col].names
+        for example in track(
+            dataset.select(range(min(len(dataset), 5000))), description=dataset_name
+        ):
             original_image = example[image_col]
             if not isinstance(original_image, Image.Image):
                 original_image = Image.fromarray(original_image)
