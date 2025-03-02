@@ -67,11 +67,11 @@ def calculate_metrics(original_image, interpolated_image):
 
 if __name__ == "__main__":
     datasets_config = [
-        # {
-        #     "name": "uoft-cs/cifar10",
-        #     "image_col": "img",
-        #     "label_col": "label",
-        # },
+        {
+            "name": "uoft-cs/cifar10",
+            "image_col": "img",
+            "label_col": "label",
+        },
         {
             "name": "AI-Lab-Makerere/beans",
             "image_col": "image",
