@@ -13,7 +13,7 @@ def prepare_image(height, width):
 
 
 if __name__ == "__main__":
-    modules = [opencv, skimage, rust]
+    modules = [rust]
     functions = list(
         itertools.chain.from_iterable(
             get_public_functions(module) for module in modules
@@ -30,12 +30,11 @@ if __name__ == "__main__":
         module_name = func.__module__.split(".")[-1]
         image = prepare_image(*image_size)
         runner.bench_func(
-            f"{module_name} {func.__name__} {image_size[0]}*{image_size[1]} x{scale_factor}",
+            f"{func.__name__} {image_size[0]}*{image_size[1]} x{scale_factor}",
             func,
             image,
             scale_factor,
             metadata=dict(
-                module=module_name,
                 func=func.__name__,
                 image_size=f"{image_size[0]}*{image_size[1]}",
                 scale_factor=scale_factor,
