@@ -4,7 +4,6 @@ import pyperf
 from src import opencv
 from src import skimage
 from src import rust
-import inspect
 
 from utils import get_public_functions
 

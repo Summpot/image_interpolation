@@ -88,7 +88,7 @@ if __name__ == "__main__":
             "label_col": "label",
         },
     ]
-    modules = [opencv, skimage, rust]
+    modules = [rust]
     functions = list(
         itertools.chain.from_iterable(
             (get_public_functions(module) for module in modules)
