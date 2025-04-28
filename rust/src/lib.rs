@@ -6,19 +6,29 @@ use numpy::{PyArray3, PyReadonlyArray3, ToPyArray};
 #[pymodule]
 fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     fn nearest_neighbor(image: ArrayView3<u8>, scale_factor: f64) -> Array3<u8> {
+        if scale_factor <= 0.0 {
+            panic!("Scale factor must be positive");
+        }
         let (height, width, channels) = image.dim();
-        let new_height = (height as f64 * scale_factor) as usize;
-        let new_width = (width as f64 * scale_factor) as usize;
+        if height == 0 || width == 0 || channels == 0 {
+            panic!(
+                "Invalid image dimensions: {}x{}x{}",
+                height, width, channels
+            );
+        }
+        let new_height = (height as f64 * scale_factor).round() as usize;
+        let new_width = (width as f64 * scale_factor).round() as usize;
+        if new_height == 0 || new_width == 0 {
+            panic!("Output dimensions too small: {}x{}", new_height, new_width);
+        }
         let mut new_image = Array3::zeros((new_height, new_width, channels));
 
         for y in 0..new_height {
             for x in 0..new_width {
-                let original_x = (x as f64 / scale_factor).round() as usize;
-                let original_y = (y as f64 / scale_factor).round() as usize;
-                if original_x < width && original_y < height {
-                    for channel in 0..channels {
-                        new_image[[y, x, channel]] = image[[original_y, original_x, channel]];
-                    }
+                let original_x = ((x as f64 / scale_factor).round() as usize).min(width - 1);
+                let original_y = ((y as f64 / scale_factor).round() as usize).min(height - 1);
+                for channel in 0..channels {
+                    new_image[[y, x, channel]] = image[[original_y, original_x, channel]];
                 }
             }
         }
@@ -26,9 +36,21 @@ fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     }
 
     fn bilinear(image: ArrayView3<u8>, scale_factor: f64) -> Array3<u8> {
+        if scale_factor <= 0.0 {
+            panic!("Scale factor must be positive");
+        }
         let (height, width, channels) = image.dim();
-        let new_height = (height as f64 * scale_factor) as usize;
-        let new_width = (width as f64 * scale_factor) as usize;
+        if height == 0 || width == 0 || channels == 0 {
+            panic!(
+                "Invalid image dimensions: {}x{}x{}",
+                height, width, channels
+            );
+        }
+        let new_height = (height as f64 * scale_factor).round() as usize;
+        let new_width = (width as f64 * scale_factor).round() as usize;
+        if new_height == 0 || new_width == 0 {
+            panic!("Output dimensions too small: {}x{}", new_height, new_width);
+        }
         let mut new_image = Array3::zeros((new_height, new_width, channels));
 
         for y in 0..new_height {
@@ -44,13 +66,11 @@ fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
                 let dy = fy - y0 as f64;
 
                 for channel in 0..channels {
-                    // 将 u8 转换为 f64 进行计算
                     let top_f64 = (image[[y0, x0, channel]] as f64) * (1.0 - dx)
                         + (image[[y0, x1, channel]] as f64) * dx;
                     let bottom_f64 = (image[[y1, x0, channel]] as f64) * (1.0 - dx)
                         + (image[[y1, x1, channel]] as f64) * dx;
                     let value_f64 = top_f64 * (1.0 - dy) + bottom_f64 * dy;
-                    // 钳制到 0-255 范围并转换为 u8
                     new_image[[y, x, channel]] = value_f64.round().max(0.0).min(255.0) as u8;
                 }
             }
@@ -71,9 +91,21 @@ fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     }
 
     fn bicubic(image: ArrayView3<u8>, scale_factor: f64) -> Array3<u8> {
+        if scale_factor <= 0.0 {
+            panic!("Scale factor must be positive");
+        }
         let (height, width, channels) = image.dim();
-        let new_height = (height as f64 * scale_factor) as usize;
-        let new_width = (width as f64 * scale_factor) as usize;
+        if height == 0 || width == 0 || channels == 0 {
+            panic!(
+                "Invalid image dimensions: {}x{}x{}",
+                height, width, channels
+            );
+        }
+        let new_height = (height as f64 * scale_factor).round() as usize;
+        let new_width = (width as f64 * scale_factor).round() as usize;
+        if new_height == 0 || new_width == 0 {
+            panic!("Output dimensions too small: {}x{}", new_height, new_width);
+        }
         let mut new_image = Array3::zeros((new_height, new_width, channels));
 
         for y in 0..new_height {
@@ -91,11 +123,9 @@ fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
                             let py = (y0 + dy).max(0).min(height as isize - 1) as usize;
                             let wx = bicubic_weight(fx - (x0 + dx) as f64);
                             let wy = bicubic_weight(fy - (y0 + dy) as f64);
-                            // 转换为 f64 进行计算
                             value_f64 += (image[[py, px, channel]] as f64) * wx * wy;
                         }
                     }
-                    // 钳制到 0-255 范围并转换为 u8
                     new_image[[y, x, channel]] = value_f64.round().max(0.0).min(255.0) as u8;
                 }
             }
@@ -115,11 +145,23 @@ fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     }
 
     fn lanczos(image: ArrayView3<u8>, scale_factor: f64) -> Array3<u8> {
+        if scale_factor <= 0.0 {
+            panic!("Scale factor must be positive");
+        }
         let (height, width, channels) = image.dim();
-        let new_height = (height as f64 * scale_factor) as usize;
-        let new_width = (width as f64 * scale_factor) as usize;
+        if height == 0 || width == 0 || channels == 0 {
+            panic!(
+                "Invalid image dimensions: {}x{}x{}",
+                height, width, channels
+            );
+        }
+        let new_height = (height as f64 * scale_factor).round() as usize;
+        let new_width = (width as f64 * scale_factor).round() as usize;
+        if new_height == 0 || new_width == 0 {
+            panic!("Output dimensions too small: {}x{}", new_height, new_width);
+        }
         let mut new_image = Array3::zeros((new_height, new_width, channels));
-        let a = 3.0; // Lanczos window size (3-lobe)
+        let a = 3.0;
 
         for y in 0..new_height {
             for x in 0..new_width {
@@ -132,21 +174,21 @@ fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
                     let mut value_f64 = 0.0;
                     let mut weight_sum = 0.0;
                     for dy in -2..=2 {
-                        // 5x5 neighborhood for a=3
                         for dx in -2..=2 {
                             let px = (x0 + dx).max(0).min(width as isize - 1) as usize;
                             let py = (y0 + dy).max(0).min(height as isize - 1) as usize;
                             let wx = lanczos_weight(fx - (x0 + dx) as f64, a);
                             let wy = lanczos_weight(fy - (y0 + dy) as f64, a);
                             let weight = wx * wy;
-                            // 转换为 f64 进行计算
                             value_f64 += (image[[py, px, channel]] as f64) * weight;
                             weight_sum += weight;
                         }
                     }
-                    // 归一化、钳制到 0-255 范围并转换为 u8
-                    new_image[[y, x, channel]] =
-                        (value_f64 / weight_sum).round().max(0.0).min(255.0) as u8;
+                    new_image[[y, x, channel]] = if weight_sum > 0.0 {
+                        (value_f64 / weight_sum).round().max(0.0).min(255.0) as u8
+                    } else {
+                        0
+                    };
                 }
             }
         }
@@ -154,9 +196,21 @@ fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     }
 
     fn edge_preserving(image: ArrayView3<u8>, scale_factor: f64) -> Array3<u8> {
+        if scale_factor <= 0.0 {
+            panic!("Scale factor must be positive");
+        }
         let (height, width, channels) = image.dim();
-        let new_height = (height as f64 * scale_factor) as usize;
-        let new_width = (width as f64 * scale_factor) as usize;
+        if height == 0 || width == 0 || channels == 0 {
+            panic!(
+                "Invalid image dimensions: {}x{}x{}",
+                height, width, channels
+            );
+        }
+        let new_height = (height as f64 * scale_factor).round() as usize;
+        let new_width = (width as f64 * scale_factor).round() as usize;
+        if new_height == 0 || new_width == 0 {
+            panic!("Output dimensions too small: {}x{}", new_height, new_width);
+        }
         let mut new_image = Array3::zeros((new_height, new_width, channels));
 
         for y in 0..new_height {
@@ -172,7 +226,6 @@ fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
                 let dy = fy - y0 as f64;
 
                 for channel in 0..channels {
-                    // Compute gradients in horizontal and vertical directions
                     let grad_x = if x1 > x0 {
                         (image[[y0, x1, channel]] as f64 - image[[y0, x0, channel]] as f64).abs()
                     } else {
@@ -184,12 +237,10 @@ fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
                         0.0
                     };
 
-                    // Weight interpolation based on gradient: lower gradient direction gets higher weight
-                    let total_grad = grad_x + grad_y + 1e-6; // Avoid division by zero
-                    let wx = grad_y / total_grad; // Weight for horizontal
-                    let wy = grad_x / total_grad; // Weight for vertical
+                    let total_grad = grad_x + grad_y + 1e-6;
+                    let wx = grad_y / total_grad;
+                    let wy = grad_x / total_grad;
 
-                    // Bilinear interpolation with edge-aware weights
                     let top = (image[[y0, x0, channel]] as f64) * (1.0 - dx)
                         + (image[[y0, x1, channel]] as f64) * dx;
                     let bottom = (image[[y1, x0, channel]] as f64) * (1.0 - dx)
@@ -205,23 +256,31 @@ fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     fn haar_wavelet_decompose(image: ArrayView3<u8>, channel: usize) -> (Array3<f64>, Array3<f64>) {
         let (height, width, _) = image.dim();
-        let mut low_freq = Array3::zeros((height / 2, width / 2, 1));
-        let mut high_freq = Array3::zeros((height / 2, width / 2, 3)); // Store differences
+        // Adjust dimensions to be even
+        let h = height - (height % 2);
+        let w = width - (width % 2);
+        if h == 0 || w == 0 {
+            panic!(
+                "Image dimensions too small for wavelet decomposition: {}x{}",
+                height, width
+            );
+        }
+        let out_height = h / 2;
+        let out_width = w / 2;
+        let mut low_freq = Array3::zeros((out_height, out_width, 1));
+        let mut high_freq = Array3::zeros((out_height, out_width, 3));
 
-        for y in (0..height - 1).step_by(2) {
-            for x in (0..width - 1).step_by(2) {
+        for y in (0..h).step_by(2) {
+            for x in (0..w).step_by(2) {
                 let p00 = image[[y, x, channel]] as f64;
                 let p01 = image[[y, x + 1, channel]] as f64;
                 let p10 = image[[y + 1, x, channel]] as f64;
                 let p11 = image[[y + 1, x + 1, channel]] as f64;
 
-                // Low-frequency (average)
                 low_freq[[y / 2, x / 2, 0]] = (p00 + p01 + p10 + p11) / 4.0;
-                // High-frequency (differences)
-                high_freq[[y / 2, x / 2, 0]] = p00 - low_freq[[y / 2, x / 2, 0]]; // Horizontal
-                high_freq[[y / 2, x / 2, 1]] = p01 - low_freq[[y / 2, x / 2, 0]]; // Vertical
+                high_freq[[y / 2, x / 2, 0]] = p00 - low_freq[[y / 2, x / 2, 0]];
+                high_freq[[y / 2, x / 2, 1]] = p01 - low_freq[[y / 2, x / 2, 0]];
                 high_freq[[y / 2, x / 2, 2]] = p11 - low_freq[[y / 2, x / 2, 0]];
-                // Diagonal
             }
         }
         (low_freq, high_freq)
@@ -233,10 +292,18 @@ fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
         output_shape: (usize, usize),
     ) -> Array3<u8> {
         let (new_height, new_width) = output_shape;
+        let out_height = new_height - (new_height % 2);
+        let out_width = new_width - (new_width % 2);
+        if out_height == 0 || out_width == 0 {
+            panic!(
+                "Output dimensions too small for wavelet reconstruction: {}x{}",
+                new_height, new_width
+            );
+        }
         let mut reconstructed = Array3::zeros((new_height, new_width, 1));
 
-        for y in 0..new_height / 2 {
-            for x in 0..new_width / 2 {
+        for y in 0..out_height / 2 {
+            for x in 0..out_width / 2 {
                 let low = low_freq[[y, x, 0]];
                 let h0 = high_freq[[y, x, 0]];
                 let h1 = high_freq[[y, x, 1]];
@@ -253,27 +320,33 @@ fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     }
 
     fn wavelet_based(image: ArrayView3<u8>, scale_factor: f64) -> Array3<u8> {
+        if scale_factor <= 0.0 {
+            panic!("Scale factor must be positive");
+        }
         let (height, width, channels) = image.dim();
-        let new_height = (height as f64 * scale_factor) as usize;
-        let new_width = (width as f64 * scale_factor) as usize;
+        if height == 0 || width == 0 || channels == 0 {
+            panic!(
+                "Invalid image dimensions: {}x{}x{}",
+                height, width, channels
+            );
+        }
+        let new_height = (height as f64 * scale_factor).round() as usize;
+        let new_width = (width as f64 * scale_factor).round() as usize;
+        if new_height == 0 || new_width == 0 {
+            panic!("Output dimensions too small: {}x{}", new_height, new_width);
+        }
         let mut new_image = Array3::zeros((new_height, new_width, channels));
 
         for channel in 0..channels {
-            // Decompose using Haar wavelet
-            let (low_freq, high_freq) = haar_wavelet_decompose(image, channel);
-
-            // Interpolate low-frequency component using bilinear
+            let (mut low_freq, high_freq) = haar_wavelet_decompose(image, channel);
             let low_freq_view = low_freq.view();
-            let interpolated_low = bilinear(low_freq_view.mapv(|v| v as u8).view(), scale_factor);
-
-            // Reconstruct with high-frequency details
+            let interpolated_low = bilinear(low_freq_view.mapv(|v| v as u8), scale_factor);
             let reconstructed = haar_wavelet_reconstruct(
-                interpolated_low.mapv(|v| v as f64).view(),
+                interpolated_low.view().mapv(|v| v as f64),
                 high_freq.view(),
                 (new_height, new_width),
             );
 
-            // Copy to output
             for y in 0..new_height {
                 for x in 0..new_width {
                     new_image[[y, x, channel]] = reconstructed[[y, x, 0]];
@@ -284,9 +357,21 @@ fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     }
 
     fn nedi(image: ArrayView3<u8>, scale_factor: f64) -> Array3<u8> {
+        if scale_factor <= 0.0 {
+            panic!("Scale factor must be positive");
+        }
         let (height, width, channels) = image.dim();
-        let new_height = (height as f64 * scale_factor) as usize;
-        let new_width = (width as f64 * scale_factor) as usize;
+        if height == 0 || width == 0 || channels == 0 {
+            panic!(
+                "Invalid image dimensions: {}x{}x{}",
+                height, width, channels
+            );
+        }
+        let new_height = (height as f64 * scale_factor).round() as usize;
+        let new_width = (width as f64 * scale_factor).round() as usize;
+        if new_height == 0 || new_width == 0 {
+            panic!("Output dimensions too small: {}x{}", new_height, new_width);
+        }
         let mut new_image = Array3::zeros((new_height, new_width, channels));
 
         for y in 0..new_height {
@@ -300,23 +385,22 @@ fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
                     let mut value_f64 = 0.0;
                     let mut weight_sum = 0.0;
 
-                    // 4x4 window for covariance estimation
                     for dy in -1..=2 {
                         for dx in -1..=2 {
                             let px = (x0 + dx).max(0).min(width as isize - 1) as usize;
                             let py = (y0 + dy).max(0).min(height as isize - 1) as usize;
-
-                            // Simplified covariance-based weight (distance-based for simplicity)
                             let dist_x = (fx - (x0 + dx) as f64).abs();
                             let dist_y = (fy - (y0 + dy) as f64).abs();
-                            let weight = 1.0 / (dist_x * dist_y + 1e-6); // Inverse distance weight
-
+                            let weight = 1.0 / (dist_x * dist_y + 1e-6);
                             value_f64 += (image[[py, px, channel]] as f64) * weight;
                             weight_sum += weight;
                         }
                     }
-                    new_image[[y, x, channel]] =
-                        (value_f64 / weight_sum).round().max(0.0).min(255.0) as u8;
+                    new_image[[y, x, channel]] = if weight_sum > 0.0 {
+                        (value_f64 / weight_sum).round().max(0.0).min(255.0) as u8
+                    } else {
+                        0
+                    };
                 }
             }
         }
@@ -324,9 +408,21 @@ fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     }
 
     fn dcci(image: ArrayView3<u8>, scale_factor: f64) -> Array3<u8> {
+        if scale_factor <= 0.0 {
+            panic!("Scale factor must be positive");
+        }
         let (height, width, channels) = image.dim();
-        let new_height = (height as f64 * scale_factor) as usize;
-        let new_width = (width as f64 * scale_factor) as usize;
+        if height == 0 || width == 0 || channels == 0 {
+            panic!(
+                "Invalid image dimensions: {}x{}x{}",
+                height, width, channels
+            );
+        }
+        let new_height = (height as f64 * scale_factor).round() as usize;
+        let new_width = (width as f64 * scale_factor).round() as usize;
+        if new_height == 0 || new_width == 0 {
+            panic!("Output dimensions too small: {}x{}", new_height, new_width);
+        }
         let mut new_image = Array3::zeros((new_height, new_width, channels));
 
         for y in 0..new_height {
@@ -337,7 +433,6 @@ fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
                 let y0 = fy.floor() as isize;
 
                 for channel in 0..channels {
-                    // Compute edge direction using Sobel-like gradients
                     let grad_x = if x0 > 0 && x0 < width as isize - 1 {
                         (image[[y0 as usize, (x0 + 1) as usize, channel]] as f64
                             - image[[y0 as usize, (x0 - 1) as usize, channel]] as f64)
@@ -352,9 +447,8 @@ fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
                     } else {
                         0.0
                     };
-                    let direction = grad_y.atan2(grad_x); // Edge direction in radians
+                    let direction = grad_y.atan2(grad_x);
 
-                    // Adjust cubic kernel based on direction (simplified to weight adjustment)
                     let mut value_f64 = 0.0;
                     for dy in -1..=2 {
                         for dx in -1..=2 {
@@ -363,7 +457,6 @@ fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
                             let dist_x = fx - (x0 + dx) as f64;
                             let dist_y = fy - (y0 + dy) as f64;
 
-                            // Rotate distance based on edge direction
                             let rot_x = dist_x * direction.cos() + dist_y * direction.sin();
                             let rot_y = -dist_x * direction.sin() + dist_y * direction.cos();
                             let wx = bicubic_weight(rot_x);
