@@ -85,16 +85,19 @@ if __name__ == "__main__":
             "name": "AI-Lab-Makerere/beans",
             "image_col": "image",
             "label_col": "labels",
+            "subset": None,
         },
         {
             "name": "blanchon/UC_Merced",
             "image_col": "image",
             "label_col": "label",
+            "subset": None,
         },
         {
             "name": "keremberke/chest-xray-classification",
             "image_col": "image",
             "label_col": "labels",
+            "subset": "full",
         },
     ]
     modules = [rust]
@@ -112,9 +115,14 @@ if __name__ == "__main__":
         dataset_name = dataset_info["name"]
         image_col = dataset_info["image_col"]
         label_col = dataset_info["label_col"]
+        subset = dataset_info["subset"]
 
         try:
-            dataset = load_dataset(dataset_name, split="train")
+            dataset = load_dataset(
+                dataset_name,
+                subset,
+                split="train",
+            )
         except Exception as e:
             print(f"Error loading dataset {dataset_name}: {e}")
             continue
