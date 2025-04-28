@@ -14,7 +14,7 @@ import polars as pl
 from rich.progress import track
 
 
-from utils import downsample_image, get_public_functions
+from utils import get_public_functions
 
 
 def convert_to_grayscale(image):
@@ -35,14 +35,21 @@ def convert_to_grayscale(image):
 def calculate_metrics(original_image, interpolated_image):
     original_image_np = np.array(original_image)
     interpolated_image_np = np.array(interpolated_image)
-    downsampled_image_np = downsample_image(
-        interpolated_image_np, original_image_np.shape
-    )
+
+    # Ensure interpolated image matches original image dimensions
+    if interpolated_image_np.shape != original_image_np.shape:
+        interpolated_image_np = cv2.resize(
+            interpolated_image_np,
+            (original_image_np.shape[1], original_image_np.shape[0]),
+            interpolation=cv2.INTER_AREA,
+        )
+
     original_gray = convert_to_grayscale(original_image_np)
-    downsampled_gray = convert_to_grayscale(downsampled_image_np)
-    mse = mean_squared_error(original_image_np, downsampled_image_np)
-    psnr = peak_signal_noise_ratio(original_image_np, downsampled_image_np)
-    ssim = structural_similarity(original_gray, downsampled_gray)
+    interpolated_gray = convert_to_grayscale(interpolated_image_np)
+
+    mse = mean_squared_error(original_image_np, interpolated_image_np)
+    psnr = peak_signal_noise_ratio(original_image_np, interpolated_image_np)
+    ssim = structural_similarity(original_gray, interpolated_gray)
 
     hash_a = imagehash.average_hash(original_image) - imagehash.average_hash(
         interpolated_image
@@ -61,6 +68,15 @@ def calculate_metrics(original_image, interpolated_image):
         "whash_diff": int(hash_w),
     }
     return metrics_dict
+
+
+def downsample_image(image, scale_factor):
+    """Downsample an image using INTER_AREA."""
+    new_height = int(image.shape[0] / scale_factor)
+    new_width = int(image.shape[1] / scale_factor)
+    if new_height == 0 or new_width == 0:
+        raise ValueError("Downsampled dimensions are too small.")
+    return cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)
 
 
 if __name__ == "__main__":
@@ -85,7 +101,7 @@ if __name__ == "__main__":
     functions = [(func.__name__, func) for func in functions]
     scale_factors = [2**i for i in range(1, 3)]
 
-    test_data_records = []  # 存储测试数据的列表
+    test_data_records = []
 
     for dataset_info in datasets_config:
         dataset_name = dataset_info["name"]
@@ -97,47 +113,75 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Error loading dataset {dataset_name}: {e}")
             continue
+
+        # Randomly select 1000 indices (or all if dataset is smaller)
+        num_samples = min(len(dataset), 1000)
+        if num_samples == 0:
+            print(f"Dataset {dataset_name} is empty, skipping.")
+            continue
+        indices = np.random.choice(len(dataset), size=num_samples, replace=False)
+
         label_names = dataset.features[label_col].names
-        for example in track(
-            dataset.select(range(min(len(dataset), 1000))), description=dataset_name
-        ):
+        for idx in track(indices, description=dataset_name):
+            example = dataset[int(idx)]  # Convert idx to int for dataset access
             original_image = example[image_col]
             if not isinstance(original_image, Image.Image):
                 original_image = Image.fromarray(original_image)
             original_image_np = np.array(original_image)
+
+            # Handle grayscale images
             if original_image_np.ndim == 2:
                 original_image_np = np.expand_dims(original_image_np, axis=2)
+
             label_name = (
                 label_names[example[label_col]] if label_col in example else "unknown"
             )
 
             for interp_name, interp_func in functions:
                 for scale_factor in scale_factors:
-                    interpolated_image_np = interp_func(original_image_np, scale_factor)
-                    if (
-                        interpolated_image_np.ndim == 3
-                        and interpolated_image_np.shape[-1] == 1
-                    ):
-                        interpolated_image_np = np.squeeze(
-                            interpolated_image_np, axis=2
+                    try:
+                        # Downsample the original image
+                        downsampled_image_np = downsample_image(
+                            original_image_np, scale_factor
                         )
-                    interpolated_image = Image.fromarray(interpolated_image_np)
-                    metrics = calculate_metrics(original_image, interpolated_image)
 
-                    record = {
-                        "dataset_name": dataset_name,
-                        "label_name": label_name,
-                        "interp_algorithm": interp_name,
-                        "scale_factor": scale_factor,
-                        "mse": metrics["mse"],
-                        "psnr": metrics["psnr"],
-                        "ssim": metrics["ssim"],
-                        "average_hash_diff": metrics["average_hash_diff"],
-                        "phash_diff": metrics["phash_diff"],
-                        "dhash_diff": metrics["dhash_diff"],
-                        "whash_diff": metrics["whash_diff"],
-                    }
+                        # Apply interpolation to upsample back to original size
+                        interpolated_image_np = interp_func(
+                            downsampled_image_np, scale_factor
+                        )
 
-                    test_data_records.append(record)
+                        # Ensure interpolated image is in correct format
+                        if (
+                            interpolated_image_np.ndim == 3
+                            and interpolated_image_np.shape[-1] == 1
+                        ):
+                            interpolated_image_np = np.squeeze(
+                                interpolated_image_np, axis=2
+                            )
+
+                        interpolated_image = Image.fromarray(interpolated_image_np)
+                        metrics = calculate_metrics(original_image, interpolated_image)
+
+                        record = {
+                            "dataset_name": dataset_name,
+                            "label_name": label_name,
+                            "interp_algorithm": interp_name,
+                            "scale_factor": scale_factor,
+                            "mse": metrics["mse"],
+                            "psnr": metrics["psnr"],
+                            "ssim": metrics["ssim"],
+                            "average_hash_diff": metrics["average_hash_diff"],
+                            "phash_diff": metrics["phash_diff"],
+                            "dhash_diff": metrics["dhash_diff"],
+                            "whash_diff": metrics["whash_diff"],
+                        }
+
+                        test_data_records.append(record)
+                    except Exception as e:
+                        print(
+                            f"Error processing {interp_name} with scale {scale_factor}: {e}"
+                        )
+                        continue
+
     df_results = pl.DataFrame(test_data_records)
     df_results.write_json("quality.json")

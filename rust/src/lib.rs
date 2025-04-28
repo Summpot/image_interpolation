@@ -462,5 +462,17 @@ fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
         let interpolated_array = nedi(image_array, scale_factor);
         interpolated_array.to_pyarray(py)
     }
+
+    #[pyfn(m)]
+    #[pyo3(name = "dcci", signature=(image, scale_factor))]
+    fn py_dcci<'py>(
+        py: Python<'py>,
+        image: PyReadonlyArray3<'py, u8>,
+        scale_factor: f64,
+    ) -> Bound<'py, PyArray3<u8>> {
+        let image_array = image.as_array();
+        let interpolated_array = dcci(image_array, scale_factor);
+        interpolated_array.to_pyarray(py)
+    }
     Ok(())
 }
