@@ -2,8 +2,6 @@ import itertools
 import cv2
 from datasets import load_dataset
 import numpy as np
-from src import opencv
-from src import skimage
 from src import rust
 from skimage.metrics import (
     structural_similarity,
@@ -68,19 +66,9 @@ def calculate_metrics(original_image, interpolated_image):
 if __name__ == "__main__":
     datasets_config = [
         {
-            "name": "uoft-cs/cifar10",
-            "image_col": "img",
-            "label_col": "label",
-        },
-        {
             "name": "AI-Lab-Makerere/beans",
             "image_col": "image",
             "label_col": "labels",
-        },
-        {
-            "name": "ylecun/mnist",
-            "image_col": "image",
-            "label_col": "label",
         },
         {
             "name": "blanchon/UC_Merced",
@@ -94,9 +82,7 @@ if __name__ == "__main__":
             (get_public_functions(module) for module in modules)
         )
     )
-    functions = [
-        (f"{func.__module__.split('.')[1]}.{func.__name__}", func) for func in functions
-    ]
+    functions = [(func.__name__, func) for func in functions]
     scale_factors = [2**i for i in range(1, 3)]
 
     test_data_records = []  # 存储测试数据的列表
@@ -113,7 +99,7 @@ if __name__ == "__main__":
             continue
         label_names = dataset.features[label_col].names
         for example in track(
-            dataset.select(range(min(len(dataset), 5000))), description=dataset_name
+            dataset.select(range(min(len(dataset), 1000))), description=dataset_name
         ):
             original_image = example[image_col]
             if not isinstance(original_image, Image.Image):
