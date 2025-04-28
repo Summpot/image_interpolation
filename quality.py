@@ -91,6 +91,11 @@ if __name__ == "__main__":
             "image_col": "image",
             "label_col": "label",
         },
+        {
+            "name": "keremberke/chest-xray-classification",
+            "image_col": "image",
+            "label_col": "labels",
+        },
     ]
     modules = [rust]
     functions = list(
