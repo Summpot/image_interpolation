@@ -338,11 +338,11 @@ fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
         let mut new_image = Array3::zeros((new_height, new_width, channels));
 
         for channel in 0..channels {
-            let (mut low_freq, high_freq) = haar_wavelet_decompose(image, channel);
+            let (low_freq, high_freq) = haar_wavelet_decompose(image, channel);
             let low_freq_view = low_freq.view();
-            let interpolated_low = bilinear(low_freq_view.mapv(|v| v as u8), scale_factor);
+            let interpolated_low = bilinear(low_freq_view.mapv(|v| v as u8).view(), scale_factor);
             let reconstructed = haar_wavelet_reconstruct(
-                interpolated_low.view().mapv(|v| v as f64),
+                interpolated_low.mapv(|v| v as f64).view(),
                 high_freq.view(),
                 (new_height, new_width),
             );
