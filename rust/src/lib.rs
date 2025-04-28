@@ -256,27 +256,28 @@ fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     fn haar_wavelet_decompose(image: ArrayView3<u8>, channel: usize) -> (Array3<f64>, Array3<f64>) {
         let (height, width, _) = image.dim();
-        // Adjust dimensions to be even
+        // 确保最小尺寸为 4x4，避免分解后子带过小
+        if height < 4 || width < 4 {
+            panic!("Image too small for wavelet decomposition: {}x{}", height, width);
+        }
+        // 调整为偶数尺寸
         let h = height - (height % 2);
         let w = width - (width % 2);
-        if h == 0 || w == 0 {
-            panic!(
-                "Image dimensions too small for wavelet decomposition: {}x{}",
-                height, width
-            );
-        }
         let out_height = h / 2;
         let out_width = w / 2;
+        if out_height == 0 || out_width == 0 {
+            panic!("Output subband dimensions too small: {}x{}", out_height, out_width);
+        }
         let mut low_freq = Array3::zeros((out_height, out_width, 1));
         let mut high_freq = Array3::zeros((out_height, out_width, 3));
-
+    
         for y in (0..h).step_by(2) {
             for x in (0..w).step_by(2) {
                 let p00 = image[[y, x, channel]] as f64;
                 let p01 = image[[y, x + 1, channel]] as f64;
                 let p10 = image[[y + 1, x, channel]] as f64;
                 let p11 = image[[y + 1, x + 1, channel]] as f64;
-
+    
                 low_freq[[y / 2, x / 2, 0]] = (p00 + p01 + p10 + p11) / 4.0;
                 high_freq[[y / 2, x / 2, 0]] = p00 - low_freq[[y / 2, x / 2, 0]];
                 high_freq[[y / 2, x / 2, 1]] = p01 - low_freq[[y / 2, x / 2, 0]];
@@ -285,58 +286,74 @@ fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
         }
         (low_freq, high_freq)
     }
-
-    fn haar_wavelet_reconstruct(
-        low_freq: ArrayView3<f64>,
-        high_freq: ArrayView3<f64>,
-        output_shape: (usize, usize),
-    ) -> Array3<u8> {
+    
+    fn haar_wavelet_reconstruct(low_freq: ArrayView3<f64>, high_freq: ArrayView3<f64>, output_shape: (usize, usize)) -> Array3<u8> {
         let (new_height, new_width) = output_shape;
+        // 确保最小输出尺寸
+        if new_height < 4 || new_width < 4 {
+            panic!("Output dimensions too small for wavelet reconstruction: {}x{}", new_height, new_width);
+        }
+        // 调整为偶数尺寸
         let out_height = new_height - (new_height % 2);
         let out_width = new_width - (new_width % 2);
-        if out_height == 0 || out_width == 0 {
-            panic!(
-                "Output dimensions too small for wavelet reconstruction: {}x{}",
-                new_height, new_width
-            );
+        let max_y = (out_height / 2).min(low_freq.dim().0);
+        let max_x = (out_width / 2).min(low_freq.dim().1);
+        if max_y == 0 || max_x == 0 {
+            panic!("Reconstruction subband dimensions too small: {}x{}", max_y, max_x);
         }
         let mut reconstructed = Array3::zeros((new_height, new_width, 1));
-
-        for y in 0..out_height / 2 {
-            for x in 0..out_width / 2 {
+    
+        for y in 0..max_y {
+            for x in 0..max_x {
                 let low = low_freq[[y, x, 0]];
-                let h0 = high_freq[[y, x, 0]];
-                let h1 = high_freq[[y, x, 1]];
-                let h2 = high_freq[[y, x, 2]];
-
-                reconstructed[[y * 2, x * 2, 0]] = (low + h0).round().max(0.0).min(255.0) as u8;
-                reconstructed[[y * 2, x * 2 + 1, 0]] = (low + h1).round().max(0.0).min(255.0) as u8;
-                reconstructed[[y * 2 + 1, x * 2, 0]] = (low + h2).round().max(0.0).min(255.0) as u8;
-                reconstructed[[y * 2 + 1, x * 2 + 1, 0]] =
-                    (low + h2).round().max(0.0).min(255.0) as u8;
+                let h0 = if y < high_freq.dim().0 && x < high_freq.dim().1 {
+                    high_freq[[y, x, 0]]
+                } else {
+                    0.0
+                };
+                let h1 = if y < high_freq.dim().0 && x < high_freq.dim().1 {
+                    high_freq[[y, x, 1]]
+                } else {
+                    0.0
+                };
+                let h2 = if y < high_freq.dim().0 && x < high_freq.dim().1 {
+                    high_freq[[y, x, 2]]
+                } else {
+                    0.0
+                };
+    
+                if y * 2 < new_height && x * 2 < new_width {
+                    reconstructed[[y * 2, x * 2, 0]] = (low + h0).round().max(0.0).min(255.0) as u8;
+                }
+                if y * 2 < new_height && x * 2 + 1 < new_width {
+                    reconstructed[[y * 2, x * 2 + 1, 0]] = (low + h1).round().max(0.0).min(255.0) as u8;
+                }
+                if y * 2 + 1 < new_height && x * 2 < new_width {
+                    reconstructed[[y * 2 + 1, x * 2, 0]] = (low + h2).round().max(0.0).min(255.0) as u8;
+                }
+                if y * 2 + 1 < new_height && x * 2 + 1 < new_width {
+                    reconstructed[[y * 2 + 1, x * 2 + 1, 0]] = (low + h2).round().max(0.0).min(255.0) as u8;
+                }
             }
         }
         reconstructed
     }
-
+    
     fn wavelet_based(image: ArrayView3<u8>, scale_factor: f64) -> Array3<u8> {
         if scale_factor <= 0.0 {
             panic!("Scale factor must be positive");
         }
         let (height, width, channels) = image.dim();
-        if height == 0 || width == 0 || channels == 0 {
-            panic!(
-                "Invalid image dimensions: {}x{}x{}",
-                height, width, channels
-            );
+        if height < 4 || width < 4 || channels == 0 {
+            panic!("Image too small or invalid: {}x{}x{}", height, width, channels);
         }
         let new_height = (height as f64 * scale_factor).round() as usize;
         let new_width = (width as f64 * scale_factor).round() as usize;
-        if new_height == 0 || new_width == 0 {
+        if new_height < 4 || new_width < 4 {
             panic!("Output dimensions too small: {}x{}", new_height, new_width);
         }
         let mut new_image = Array3::zeros((new_height, new_width, channels));
-
+    
         for channel in 0..channels {
             let (low_freq, high_freq) = haar_wavelet_decompose(image, channel);
             let low_freq_view = low_freq.view();
@@ -346,7 +363,7 @@ fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
                 high_freq.view(),
                 (new_height, new_width),
             );
-
+    
             for y in 0..new_height {
                 for x in 0..new_width {
                     new_image[[y, x, channel]] = reconstructed[[y, x, 0]];
