@@ -8,23 +8,42 @@ from src import rust
 from PIL import Image
 import polars as pl
 from rich.progress import track
-from utils import downsample_image, get_public_functions
+from utils import get_public_functions
 
-def convert_to_grayscale(image):
-    if image.ndim == 3:
-        if image.shape[-1] == 1:
-            image = np.squeeze(image, axis=-1)
-        elif image.shape[-1] == 3:
-            image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-    if image.dtype in (np.float32, np.float64, np.float16):
-        image = (image * 255).astype(np.uint8)
-    return image
+
+def downsample_image(image, scale_factor):
+    """Downsample an image using INTER_AREA."""
+    new_height = int(image.shape[0] / scale_factor)
+    new_width = int(image.shape[1] / scale_factor)
+    if new_height == 0 or new_width == 0:
+        raise ValueError("Downsampled dimensions are too small.")
+    return cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)
+
+
+def convert_to_rgb(image):
+    """Convert image to RGB format."""
+    image_np = np.array(image)
+    if image_np.ndim == 2:
+        # Grayscale to RGB
+        image_np = cv2.cvtColor(image_np, cv2.COLOR_GRAY2RGB)
+    elif image_np.shape[-1] == 1:
+        # Single-channel to RGB
+        image_np = np.squeeze(image_np, axis=-1)
+        image_np = cv2.cvtColor(image_np, cv2.COLOR_GRAY2RGB)
+    elif image_np.shape[-1] == 3:
+        # Ensure RGB
+        if image_np.dtype in (np.float32, np.float64, np.float16):
+            image_np = (image_np * 255).astype(np.uint8)
+    return image_np
+
 
 def save_image(image, path):
+    """Save image to the specified path."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
     if isinstance(image, np.ndarray):
         image = Image.fromarray(image)
     image.save(path)
+
 
 if __name__ == "__main__":
     datasets_config = [
@@ -32,33 +51,51 @@ if __name__ == "__main__":
             "name": "uoft-cs/cifar10",
             "image_col": "img",
             "label_col": "label",
-            "num_images": 8  # 低分辨率，选8张
-        },
-        {
-            "name": "AI-Lab-Makerere/beans",
-            "image_col": "image",
-            "label_col": "labels",
-            "num_images": 4  # 高分辨率，选4张
+            "num_images": 8,  # Low-resolution, select 8 images
+            "is_high_res": False,
+            "subset": None,
         },
         {
             "name": "ylecun/mnist",
             "image_col": "image",
             "label_col": "label",
-            "num_images": 8  # 低分辨率，选8张
+            "num_images": 8,  # Low-resolution, select 8 images
+            "is_high_res": False,
+            "subset": None,
+        },
+        {
+            "name": "AI-Lab-Makerere/beans",
+            "image_col": "image",
+            "label_col": "labels",
+            "num_images": 4,  # High-resolution, select 4 images
+            "is_high_res": True,
+            "subset": None,
         },
         {
             "name": "blanchon/UC_Merced",
             "image_col": "image",
             "label_col": "label",
-            "num_images": 4  # 高分辨率，选4张
+            "num_images": 4,  # High-resolution, select 4 images
+            "is_high_res": True,
+            "subset": None,
+        },
+        {
+            "name": "keremberke/chest-xray-classification",
+            "image_col": "image",
+            "label_col": "labels",
+            "num_images": 4,  # High-resolution, select 4 images
+            "is_high_res": True,
+            "subset": "full",
         },
     ]
     modules = [rust]
-    functions = list(itertools.chain.from_iterable(
-        (get_public_functions(module) for module in modules)
-    ))
+    functions = list(
+        itertools.chain.from_iterable(
+            (get_public_functions(module) for module in modules)
+        )
+    )
     functions = [
-        (f"{func.__module__.split('.')[1]}.{func.__name__}", func) for func in functions
+        (f"{func.__name__}", func) for func in functions
     ]
     scale_factors = [2, 4]
     image_records = []
@@ -68,17 +105,21 @@ if __name__ == "__main__":
         image_col = dataset_info["image_col"]
         label_col = dataset_info["label_col"]
         num_images = dataset_info["num_images"]
+        is_high_res = dataset_info["is_high_res"]
+        subset = dataset_info["subset"]
 
         try:
-            dataset = load_dataset(dataset_name, split="train")
+            dataset = load_dataset(dataset_name, subset, split="train")
         except Exception as e:
             print(f"Error loading dataset {dataset_name}: {e}")
             continue
 
-        # 随机选择图片
+        # Randomly select images
         total_images = len(dataset)
-        selected_indices = random.sample(range(total_images), min(num_images, total_images))
-        
+        selected_indices = random.sample(
+            range(total_images), min(num_images, total_images)
+        )
+
         for idx, example_idx in track(
             enumerate(selected_indices), description=f"Processing {dataset_name}"
         ):
@@ -86,40 +127,51 @@ if __name__ == "__main__":
             original_image = example[image_col]
             if not isinstance(original_image, Image.Image):
                 original_image = Image.fromarray(original_image)
-            original_image_np = np.array(original_image)
-            if original_image_np.ndim == 2:
-                original_image_np = np.expand_dims(original_image_np, axis=2)
+            original_image_np = convert_to_rgb(original_image)
             label_name = (
                 dataset.features[label_col].names[example[label_col]]
-                if label_col in example else "unknown"
+                if label_col in example
+                and hasattr(dataset.features[label_col], "names")
+                else "unknown"
             )
 
-            # 保存原始图片
-            original_path = f"images/{dataset_name.replace('/', '_')}/original_{idx}.png"
-            save_image(original_image, original_path)
+            # Save original image
+            original_path = (
+                f"images/{dataset_name.replace('/', '_')}/original_{idx}.png"
+            )
+            save_image(original_image_np, original_path)
+
+            # Prepare input image
+            if is_high_res:
+                # Downsample high-resolution images
+                input_image_np = downsample_image(original_image_np, scale_factor=2)
+            else:
+                # Use original image for low-resolution datasets
+                input_image_np = original_image_np
 
             for interp_name, interp_func in functions:
                 for scale_factor in scale_factors:
-                    # 插值
-                    interpolated_image_np = interp_func(original_image_np, scale_factor)
-                    if interpolated_image_np.ndim == 3 and interpolated_image_np.shape[-1] == 1:
-                        interpolated_image_np = np.squeeze(interpolated_image_np, axis=2)
-                    interpolated_image = Image.fromarray(interpolated_image_np)
+                    # Perform interpolation
+                    interpolated_image_np = interp_func(input_image_np, scale_factor)
+                    if (
+                        interpolated_image_np.ndim == 3
+                        and interpolated_image_np.shape[-1] == 1
+                    ):
+                        interpolated_image_np = np.squeeze(
+                            interpolated_image_np, axis=-1
+                        )
+                        interpolated_image_np = cv2.cvtColor(
+                            interpolated_image_np, cv2.COLOR_GRAY2RGB
+                        )
 
-                    # 下采样回原始分辨率
-                    downsampled_image_np = downsample_image(
-                        interpolated_image_np, original_image_np.shape
-                    )
-                    downsampled_image = Image.fromarray(downsampled_image_np)
-
-                    # 保存插值后图片
+                    # Save interpolated image
                     interp_path = (
                         f"images/{dataset_name.replace('/', '_')}/"
                         f"{interp_name.replace('.', '_')}_{scale_factor}x_{idx}.png"
                     )
-                    save_image(downsampled_image, interp_path)
+                    save_image(interpolated_image_np, interp_path)
 
-                    # 记录
+                    # Record image information
                     record = {
                         "dataset_name": dataset_name,
                         "label_name": label_name,

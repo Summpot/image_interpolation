@@ -1,8 +1,6 @@
 import itertools
 import numpy as np
 import pyperf
-from src import opencv
-from src import skimage
 from src import rust
 
 from utils import get_public_functions
