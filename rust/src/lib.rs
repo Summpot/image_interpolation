@@ -553,7 +553,7 @@ fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     #[pyo3(name = "wavelet_based", signature=(image, scale_factor))]
     fn py_wavelet_based<'py>(
         py: Python<'py>,
-        image: PyReadonlyArray3<'py, u8>,
+        image: PyReadonlyArray3<'py, u8>,       
         scale_factor: f64,
     ) -> Bound<'py, PyArray3<u8>> {
         let image_array = image.as_array();

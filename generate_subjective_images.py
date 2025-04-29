@@ -94,9 +94,7 @@ if __name__ == "__main__":
             (get_public_functions(module) for module in modules)
         )
     )
-    functions = [
-        (f"{func.__name__}", func) for func in functions
-    ]
+    functions = [(f"{func.__name__}", func) for func in functions]
     scale_factors = [2, 4]
     image_records = []
 
@@ -145,9 +143,15 @@ if __name__ == "__main__":
             if is_high_res:
                 # Downsample high-resolution images
                 input_image_np = downsample_image(original_image_np, scale_factor=2)
+                # 新增：保存降采样图像
+                downsampled_path = (
+                    f"images/{dataset_name.replace('/', '_')}/downsampled_2x_{idx}.png"
+                )
+                save_image(input_image_np, downsampled_path)
             else:
                 # Use original image for low-resolution datasets
                 input_image_np = original_image_np
+                downsampled_path = None  # 低分辨率数据集无降采样图像
 
             for interp_name, interp_func in functions:
                 for scale_factor in scale_factors:
@@ -181,6 +185,9 @@ if __name__ == "__main__":
                         "scale_factor": scale_factor,
                         "interp_path": interp_path,
                     }
+                    # 新增：记录降采样路径（仅高分辨率数据集）
+                    if is_high_res:
+                        record["downsampled_path"] = downsampled_path
                     image_records.append(record)
 
     df_images = pl.DataFrame(image_records)
